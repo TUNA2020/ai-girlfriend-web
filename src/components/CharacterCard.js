@@ -15,6 +15,7 @@ const Card = styled.div`
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
+  margin: 10px;
   
   &:hover {
     transform: translateY(-10px);
@@ -23,7 +24,8 @@ const Card = styled.div`
   
   &.selected {
     border: 3px solid #667eea;
-    box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+    transform: scale(1.02);
   }
 `;
 
@@ -51,9 +53,9 @@ const Avatar = styled.div`
 `;
 
 const Name = styled.h2`
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
-  margin-bottom: 5px;
+  margin-bottom: 10px;
   background: linear-gradient(135deg, #667eea, #764ba2);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -69,7 +71,7 @@ const Age = styled.span`
 const Tags = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
   margin-bottom: 20px;
 `;
@@ -77,17 +79,17 @@ const Tags = styled.div`
 const Tag = styled.span`
   background: rgba(102, 126, 234, 0.15);
   color: #667eea;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 11px;
   border: 1px solid rgba(102, 126, 234, 0.3);
 `;
 
 const Description = styled.p`
   text-align: center;
   color: rgba(255, 255, 255, 0.8);
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.5;
   margin-bottom: 20px;
   flex: 1;
 `;
@@ -95,30 +97,37 @@ const Description = styled.p`
 const LanguageBadge = styled.span`
   background: rgba(118, 75, 162, 0.2);
   color: #764ba2;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 15px;
+  font-size: 11px;
   border: 1px solid rgba(118, 75, 162, 0.3);
   margin-top: auto;
 `;
 
 export default function CharacterCard({ character, isSelected, onClick }) {
+  const { selectedCharacter, setSelectedCharacter } = React.useContext(ConversationContext);
+  
+  const handleClick = () => {
+    setSelectedCharacter(character);
+    if (onClick) {
+      onClick(character);
+    }
+  };
+
+  const isCurrentlySelected = selectedCharacter && selectedCharacter.id === character.id;
+
   return (
-    <ConversationContext.Consumer>
-      {({ selectedCharacter }) => (
-        <Card className={isSelected ? 'selected' : ''} onClick={() => onClick(character)}>
-          <Avatar>{character.emoji || '👤'}</Avatar>
-          <Name>{character.name}</Name>
-          <Age>{character.age}</Age>
-          <Tags>
-            {character.tags.map((tag, index) => (
-              <Tag key={index}>{tag}</Tag>
-            ))}
-          </Tags>
-          <Description>{character.description}</Description>
-          <LanguageBadge>{character.language}</LanguageBadge>
-        </Card>
-      )}
-    </ConversationContext.Consumer>
+    <Card className={isCurrentlySelected ? 'selected' : ''} onClick={handleClick}>
+      <Avatar>{character.emoji || '👧'}</Avatar>
+      <Name>{character.name}</Name>
+      <Age>{character.age}</Age>
+      <Tags>
+        {character.tags.map((tag, index) => (
+          <Tag key={index}>{tag}</Tag>
+        ))}
+      </Tags>
+      <Description>{character.description}</Description>
+      <LanguageBadge>{character.language}</LanguageBadge>
+    </Card>
   );
 }

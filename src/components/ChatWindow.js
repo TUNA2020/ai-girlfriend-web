@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import ConversationContext from '../context/ConversationContext';
 
@@ -12,6 +12,7 @@ const ChatContainer = styled.div`
   max-height: 600px;
   overflow-y: auto;
   backdrop-filter: blur(10px);
+  margin: 10px;
 `;
 
 const Message = styled.div`
@@ -52,11 +53,81 @@ const Timestamp = styled.span`
   margin-left: ${props => props.isUser ? 'auto' : '0'};
 `;
 
+const CharacterHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 10px;
+  margin-bottom: 10px;
+`;
+
+const Avatar = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+`;
+
+const CharacterInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
+const CharacterName = styled.h4`
+  margin: 0;
+  color: white;
+  font-size: 14px;
+`;
+
+const Status = styled.span`
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+`;
+
 export default function ChatWindow() {
-  const { conversationHistory } = useContext(ConversationContext);
-  
+  const { conversationHistory, selectedCharacter } = useContext(ConversationContext);
+  const [inputValue, setInputValue] = useState('');
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [conversationHistory]);
+
+  if (!selectedCharacter) {
+    return (
+      <ChatContainer>
+        <div style={{
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.5)',
+          marginTop: '50px',
+          fontSize: '16px'
+        }}>
+          🎀 Select a character to start chatting!
+        </div>
+      </ChatContainer>
+    );
+  }
+
   return (
     <ChatContainer>
+      <CharacterHeader>
+        <Avatar>{selectedCharacter.emoji || '👧'}</Avatar>
+        <CharacterInfo>
+          <CharacterName>{selectedCharacter.name}</CharacterName>
+          <Status>{selectedCharacter.language} • Online</Status>
+        </CharacterInfo>
+      </CharacterHeader>
+      
       {conversationHistory.length === 0 ? (
         <div style={{
           textAlign: 'center',
@@ -64,7 +135,7 @@ export default function ChatWindow() {
           marginTop: '50px',
           fontSize: '16px'
         }}>
-          🎀 Start a conversation with your AI girlfriend!
+          🎀 Start a conversation with {selectedCharacter.name}!
         </div>
       ) : (
         conversationHistory.map((msg, index) => (
@@ -79,6 +150,7 @@ export default function ChatWindow() {
           </Message>
         ))
       )}
+      <div ref={messagesEndRef} />
     </ChatContainer>
   );
 }

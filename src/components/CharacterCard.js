@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import styled from 'styled-components';
-import ConversationContext from '../context/ConversationContext';
+import { ConversationContext } from '../context/ConversationContext';
 import './CharacterAnimation.css';
 
 const Card = styled.div`
@@ -16,12 +16,12 @@ const Card = styled.div`
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
   margin: 10px;
-  
+
   &:hover {
     transform: translateY(-10px);
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   }
-  
+
   &.selected {
     border: 3px solid #667eea;
     box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
@@ -40,7 +40,7 @@ const Avatar = styled.div`
   font-size: 48px;
   margin-bottom: 20px;
   position: relative;
-  
+
   &::after {
     content: '';
     position: absolute;
@@ -104,16 +104,43 @@ const LanguageBadge = styled.span`
   margin-top: auto;
 `;
 
-export default function CharacterCard({ character, isSelected, onClick }) {
-  const { selectedCharacter, setSelectedCharacter } = React.useContext(ConversationContext);
-  
-  const handleClick = () => {
-    setSelectedCharacter(character);
+export default function CharacterCard({ character, isSelected, onClick, setSelectedCharacter }) {
+  const context = useContext(ConversationContext);
+
+  // Handle click - always call the parent onClick
+  const handleClick = (e) => {
+    e?.stopPropagation();
     if (onClick) {
-      onClick(character);
+      onClick();
+    }
+
+    // Use context if available with setSelectedCharacter, otherwise use setSelectedCharacter prop
+    if (context?.setSelectedCharacter) {
+      context.setSelectedCharacter(character);
+    } else if (setSelectedCharacter) {
+      setSelectedCharacter(character);
     }
   };
 
+  // Handle case where context is not available yet
+  if (!context) {
+    return (
+      <Card className={isSelected ? 'selected' : ''} onClick={handleClick}>
+        <Avatar>{character.emoji || '👧'}</Avatar>
+        <Name>{character.name}</Name>
+        <Age>{character.age}</Age>
+        <Tags>
+          {character.tags.map((tag, index) => (
+            <Tag key={index}>{tag}</Tag>
+          ))}
+        </Tags>
+        <Description>{character.description}</Description>
+        <LanguageBadge>{character.language}</LanguageBadge>
+      </Card>
+    );
+  }
+
+  const { selectedCharacter } = context;
   const isCurrentlySelected = selectedCharacter && selectedCharacter.id === character.id;
 
   return (

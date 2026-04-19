@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { useCharacters } from '../hooks/useCharacter';
+import { ConversationContext } from '../context/ConversationContext';
 import CharacterCard from './CharacterCard';
 
 const CarouselContainer = styled.div`
@@ -34,11 +35,11 @@ const NavigationButton = styled.button`
   justify-content: center;
   transition: background 0.3s ease;
   z-index: 10;
-  
+
   &:hover {
     background: rgba(102, 126, 234, 1);
   }
-  
+
   &:disabled {
     opacity: 0.3;
     cursor: not-allowed;
@@ -68,21 +69,22 @@ const Dot = styled.button`
   background: ${props => props.active ? '#667eea' : 'rgba(255,255,255,0.3)' };
   cursor: pointer;
   transition: background 0.3s ease;
-  
+
   &:hover {
     background: ${props => props.active ? '#667eea' : 'rgba(255,255,255,0.5)' };
   }
 `;
 
 export default function CharacterCarousel() {
-  const { characters, selectCharacter, randomCharacter } = useCharacters();
+  const { selectedCharacter, setSelectedCharacter } = React.useContext(ConversationContext) || {};
+  const { characters, randomCharacter } = useCharacters();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
+  const [isAutoPlay, setIsAutoPlay] = useState(false);
 
   useEffect(() => {
     if (isAutoPlay) {
       const interval = setInterval(() => {
-        setCurrentIndex(prev => 
+        setCurrentIndex(prev =>
           prev === characters.length - 1 ? 0 : prev + 1
         );
       }, 4000);
@@ -92,14 +94,14 @@ export default function CharacterCarousel() {
 
   const nextCharacter = () => {
     setIsAutoPlay(false);
-    setCurrentIndex(prev => 
+    setCurrentIndex(prev =>
       prev === characters.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevCharacter = () => {
     setIsAutoPlay(false);
-    setCurrentIndex(prev => 
+    setCurrentIndex(prev =>
       prev === 0 ? characters.length - 1 : prev - 1
     );
   };
@@ -111,6 +113,17 @@ export default function CharacterCarousel() {
 
   const currentCharacter = characters[currentIndex];
 
+  const handleCharacterSelect = (character) => {
+    if (setSelectedCharacter) {
+      setSelectedCharacter(character);
+    }
+    setIsAutoPlay(false);
+  };
+
+  if (!characters.length) {
+    return <div>Loading characters...</div>;
+  }
+
   return (
     <CarouselContainer>
       <CarouselTrack style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
@@ -119,12 +132,12 @@ export default function CharacterCarousel() {
             <CharacterCard
               character={character}
               isSelected={index === currentIndex}
-              onClick={() => selectCharacterAtIndex(index)}
+              onClick={() => handleCharacterSelect(character)}
             />
           </div>
         ))}
       </CarouselTrack>
-      
+
       {characters.length > 1 && (
         <>
           <PrevButton onClick={prevCharacter} disabled={characters.length <= 1}>
@@ -135,7 +148,7 @@ export default function CharacterCarousel() {
           </NextButton>
         </>
       )}
-      
+
       <DotsContainer>
         {characters.map((_, index) => (
           <Dot

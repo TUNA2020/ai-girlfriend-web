@@ -40,3 +40,31 @@ export function truncateText(text, maxLength = 100) {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
 }
+
+export function formatGreetingTime() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+export function getRandomGreeting() {
+  const greetings = [
+    'Hello there! ✨',
+    'Hi! How are you? 💕',
+    'Hey there! 😊',
+    'Welcome back! 🌟',
+    'Good to see you! 💫'
+  ];
+  return greetings[Math.floor(Math.random() * greetings.length)];
+}
+
+export function validateMessageInput(input) {
+  if (!input || input.trim().length === 0) {
+    return { valid: false, error: 'Message cannot be empty' };
+  }
+  if (input.trim().length > 1000) {
+    return { valid: false, error: 'Message too long (max 1000 characters)' };
+  }
+  return { valid: true, error: null };
+}

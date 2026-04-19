@@ -1,116 +1,96 @@
-// Local LLM integration for offline operation
+const OLLAMA_URL = 'http://localhost:11434/api/generate';
+const MODEL = 'qwen3.5:0.8b';
+
 class LocalLLM {
   constructor() {
     this.modelLoaded = false;
-    this.contextWindow = 2000; // tokens
   }
 
   async loadModel() {
     try {
-      // Simulate model loading
-      console.log('Loading local LLM...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      this.modelLoaded = true;
-      console.log('Model loaded successfully');
-      return true;
+      const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
+      if (response.ok) {
+        this.modelLoaded = true;
+        console.log('Ollama connected with model:', MODEL);
+        return true;
+      }
     } catch (error) {
-      console.error('Failed to load model:', error);
-      return false;
+      console.error('Ollama not available:', error.message);
     }
+    this.modelLoaded = false;
+    return false;
+  }
+
+  buildPrompt(character, conversationHistory) {
+    const name = character?.name || 'Girl';
+    const emoji = character?.emoji || '👧';
+    const tags = character?.tags || ['Friendly'];
+    const description = character?.description || 'sweet caring companion';
+
+    const conversationText = conversationHistory
+      .filter(msg => msg.text && msg.text.trim())
+      .slice(-4)
+      .map(msg => `${msg.isUser ? 'User' : name}: ${msg.text.replace(/^[\*\-]+\s*|\s*[\*\-]+$/g, '').trim()}`)
+      .join('\n');
+
+    return `[System] You are ${name}, ${tags.join(', ')} ${description}. Reply short (1 sentence), use emojis.\n${conversationText}\n${name}:`;
   }
 
   async generateResponse(conversationHistory, character) {
     if (!this.modelLoaded) {
-      return "I'm still learning...";
+      await this.loadModel();
+      if (!this.modelLoaded) {
+        return "Ollama not running? Start it first! 🧠";
+      }
     }
 
-    // Generate context-aware response based on character personality
-    const context = this.buildContext(conversationHistory, character);
-    const response = this.generateCharacterResponse(context, character);
-    
-    return response;
-  }
+    const prompt = this.buildPrompt(character, conversationHistory);
 
-  buildContext(history, character) {
-    // Analyze conversation history and character traits
-    const recentMessages = history.slice(-5).map(msg => msg.text).join(' ');
-    const personalityTraits = character.personality || {};
-    
-    return {
-      recentMessages,
-      personality: personalityTraits,
-      relationshipStage: this.getRelationshipStage(history.length)
-    };
-  }
+    try {
+      const response = await fetch(OLLAMA_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: MODEL,
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: 0.7,
+            top_p: 0.9,
+            max_tokens: 60,
+            num_ctx: 1024,
+          }
+        })
+      });
 
-  generateCharacterResponse(context, character) {
-    const { personality, relationshipStage } = context;
-    const mood = this.detectMood(context.recentMessages);
-    
-    // Use character-specific message templates based on mood and personality
-    const responseTemplates = this.getResponseTemplates(character, mood, relationshipStage);
-    const selectedTemplate = this.selectTemplate(responseTemplates);
-    
-    return this.fillTemplate(selectedTemplate, context);
-  }
+      if (!response.ok) {
+        throw new Error(`Ollama error: ${response.status}`);
+      }
 
-  detectMood(messages) {
-    // Simple mood detection based on message content
-    const positiveWords = ['happy', 'love', 'great', 'amazing', 'wonderful'];
-    const negativeWords = ['sad', 'angry', 'bad', 'hate', 'upset'];
-    
-    const messageText = messages.join(' ').toLowerCase();
-    const positiveCount = positiveWords.filter(word => messageText.includes(word)).length;
-    const negativeCount = negativeWords.filter(word => messageText.includes(word)).length;
-    
-    if (positiveCount > negativeCount) return 'happy';
-    if (negativeCount > positiveCount) return 'sad';
-    return 'neutral';
-  }
+      const data = await response.json();
+      let responseText = data.response || '';
 
-  getResponseTemplates(character, mood, stage) {
-    // Character-specific templates based on personality and mood
-    const baseTemplates = {
-      happy: [
-        "That's wonderful to hear! 😊",
-        "I'm so happy for you! 💕",
-        "That sounds amazing! Tell me more..."
-      ],
-      sad: [
-        "I'm here for you... 💙",
-        "Don't worry, everything will be okay 💕",
-        "I understand, let's talk about it..."
-      ],
-      neutral: [
-        "Interesting... 🤔",
-        "Tell me more about that",
-        "I see what you mean"
-      ]
-    };
-    
-    // Add character-specific variations
-    const templates = baseTemplates[mood] || baseTemplates.neutral;
-    return templates.map(t => `${character.emoji || '💕'} ${t}`);
-  }
+      // Check thinking field if response is empty
+      if (!responseText || responseText.length < 3) {
+        const thinking = data.thinking || '';
+        if (thinking.length > 10) {
+          const drafts = thinking.match(/Draft \d+:.*$/gmi) || [];
+          if (drafts.length > 0) {
+            const lastDraft = drafts[drafts.length - 1];
+            responseText = lastDraft.replace(/^Draft \d+:\s*/, '').replace(/^[\*\-]+\s*|\s*[\*\-]+$/g, '').trim();
+          }
+        }
+      }
 
-  selectTemplate(templates) {
-    const randomIndex = Math.floor(Math.random() * templates.length);
-    return templates[randomIndex];
-  }
+      if (!responseText || responseText.length < 3) {
+        return "Hey! How are you?";
+      }
 
-  fillTemplate(template, context) {
-    // Add context-aware personalization
-    const relationshipStages = ['getting_to_know', 'building_connection', 'deep_connection', 'intimate_partners'];
-    const stage = relationshipStages[Math.min(context.relationshipStage, relationshipStages.length - 1)];
-    
-    return template.replace('{stage}', stage);
-  }
-
-  getRelationshipStage(messageCount) {
-    if (messageCount < 5) return 0;
-    if (messageCount < 15) return 1;
-    if (messageCount < 30) return 2;
-    return 3;
+      return responseText;
+    } catch (error) {
+      console.error('LLM error:', error);
+      return "Oops! Something went wrong 😅";
+    }
   }
 }
 

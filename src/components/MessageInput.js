@@ -1,14 +1,16 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import styled from 'styled-components';
-import ConversationContext from '../context/ConversationContext';
+import { ConversationContext } from '../context/ConversationContext';
+import conversationManager from '../utils/conversationManager';
 
-const InputContainer = styled.div`
+const InputContainer = styled.form`
   display: flex;
   gap: 12px;
   padding: 20px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 20px;
   backdrop-filter: blur(10px);
+  margin: 10px;
 `;
 
 const Input = styled.input`
@@ -21,11 +23,9 @@ const Input = styled.input`
   font-size: 15px;
   outline: none;
   transition: border-color 0.3s ease;
-  
   &::placeholder {
     color: rgba(255, 255, 255, 0.4);
   }
-  
   &:focus {
     border-color: #667eea;
   }
@@ -38,10 +38,14 @@ const Button = styled.button`
   border-radius: 25px;
   font-weight: 600;
   transition: transform 0.2s ease;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.05);
   }
 `;
 
@@ -49,6 +53,12 @@ export default function MessageInput() {
   const { selectedCharacter, conversationHistory, setConversationHistory } = useContext(ConversationContext);
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+
+  // Reset input when conversation changes (AI responds)
+  useEffect(() => {
+    setMessage('');
+    setIsTyping(false);
+  }, [conversationHistory]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,22 +74,34 @@ export default function MessageInput() {
     setMessage('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const botResponse = {
-        text: `That's interesting! Tell me more about that.`,
-        isUser: false,
-        timestamp: Date.now()
-      };
-      setConversationHistory(prev => [...prev, botResponse]);
-      setIsTyping(false);
-    }, 1000 + Math.random() * 2000);
+    (async () => {
+      try {
+        const botText = await conversationManager.generateResponse([...conversationHistory, newMessage], selectedCharacter);
+        const botResponse = {
+          text: botText,
+          isUser: false,
+          timestamp: Date.now()
+        };
+        setConversationHistory(prev => [...prev, botResponse]);
+      } catch (err) {
+        console.error('LLM error:', err);
+        const fallback = {
+          text: "I'm having trouble thinking right now. Please try again later.",
+          isUser: false,
+          timestamp: Date.now()
+        };
+        setConversationHistory(prev => [...prev, fallback]);
+      } finally {
+        setIsTyping(false);
+      }
+    })();
   };
 
   return (
-    <InputContainer>
+    <InputContainer onSubmit={handleSubmit}>
       <Input
         type="text"
-        placeholder={isTyping ? "AI is thinking..." : `Ask ${selectedCharacter?.name || 'girlfriend'}...`}
+        placeholder={isTyping ? "AI is thinking..." : `Ask ${selectedCharacter?.name}...`}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         disabled={isTyping}

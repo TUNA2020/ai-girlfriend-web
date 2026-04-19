@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useContext } from 'react';
 import styled from 'styled-components';
 import CharacterCarousel from './components/CharacterCarousel';
 import ChatWindow from './components/ChatWindow';
-import MessageInput from './components/MessageInput';
-import ConversationContext from './context/ConversationContext';
+import { ConversationProvider, ConversationContext } from './context/ConversationContext';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -43,28 +42,30 @@ const MainContent = styled.main`
 `;
 
 function App() {
-  const [selectedCharacter, setSelectedCharacter] = useState(null);
-  const [conversationHistory, setConversationHistory] = useState([]);
+  const { selectedCharacter } = useContext(ConversationContext) || {};
+
+  // Load local LLM on mount
+  useEffect(() => {
+    const load = async () => {
+      await import('./utils/llm').then(m => m.default.loadModel());
+    };
+    load();
+  }, []);
 
   return (
-    <ConversationContext.Provider value={{ selectedCharacter, setSelectedCharacter, conversationHistory, setConversationHistory }}>
-      <AppContainer>
-        <Header>
-          <Title>AI Girlfriend</Title>
-          <Subtitle>Your Emotional Companion</Subtitle>
-        </Header>
-        <MainContent>
-          {!selectedCharacter ? (
-            <CharacterCarousel />
-          ) : (
-            <>
-              <ChatWindow />
-              <MessageInput />
-            </>
-          )}
-        </MainContent>
-      </AppContainer>
-    </ConversationContext.Provider>
+    <AppContainer>
+      <Header>
+        <Title>AI Girlfriend</Title>
+        <Subtitle>Your Emotional Companion</Subtitle>
+      </Header>
+      <MainContent>
+        {selectedCharacter ? (
+          <ChatWindow />
+        ) : (
+          <CharacterCarousel />
+        )}
+      </MainContent>
+    </AppContainer>
   );
 }
 

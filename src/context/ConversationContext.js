@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
-const ConversationContext = createContext();
+const ConversationContext = createContext(null);
 
 export function ConversationProvider({ children }) {
   const [selectedCharacter, setSelectedCharacter] = useState(null);
@@ -8,14 +8,16 @@ export function ConversationProvider({ children }) {
   const [isTyping, setIsTyping] = useState(false);
 
   return (
-    <ConversationContext.Provider value={{
-      selectedCharacter,
-      setSelectedCharacter,
-      conversationHistory,
-      setConversationHistory,
-      isTyping,
-      setIsTyping
-    }}>
+    <ConversationContext.Provider
+      value={{
+        selectedCharacter,
+        setSelectedCharacter,
+        conversationHistory,
+        setConversationHistory,
+        isTyping,
+        setIsTyping
+      }}
+    >
       {children}
     </ConversationContext.Provider>
   );
@@ -29,5 +31,4 @@ export const useConversation = () => {
   return context;
 };
 
-// Export the context itself for direct import
-export default ConversationContext;
+export { ConversationContext };

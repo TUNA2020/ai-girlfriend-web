@@ -189,7 +189,6 @@ export default function ChatWindow() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const input = inputRef.current;
     const msg = message.trim();
 
     if (!msg || !selectedCharacter) return;
@@ -203,7 +202,10 @@ export default function ChatWindow() {
     setConversationHistory(prev => [...prev, newMessage]);
     setMessage('');
 
-    // Simulate AI response with typing indicator
+    // Get the latest conversation history after the user's message is added
+    const currentHistory = [...conversationHistory, newMessage];
+
+    // Add typing indicator
     setConversationHistory(prev => [...prev, {
       text: '',
       isUser: false,
@@ -213,7 +215,7 @@ export default function ChatWindow() {
 
     try {
       const botText = await conversationManager.generateResponse(
-        [...conversationHistory, newMessage],
+        currentHistory,
         selectedCharacter
       );
 

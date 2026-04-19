@@ -1,92 +1,86 @@
-const OLLAMA_URL = 'http://localhost:11434/api/generate';
-const MODEL = 'qwen3.5:0.8b';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const MODEL = 'google/gemma-3n-e2b-it:free';
+const API_KEY = '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';
 
 class LocalLLM {
   constructor() {
-    this.modelLoaded = false;
+    this.modelLoaded = true;
   }
 
-  async loadModel() {
-    try {
-      const response = await fetch('http://localhost:11434/api/tags', { method: 'GET' });
-      if (response.ok) {
-        this.modelLoaded = true;
-        console.log('Ollama connected with model:', MODEL);
-        return true;
+  getPersonalityPrompt(tags) {
+    const personalities = {
+      'Playful': 'Be cheerful, bubbly, use playful language, show excitement with emojis 😊💖✨',
+      'Gentle': 'Be tender, caring, warm, speak softly, use comforting emojis 💕🌸💫',
+      'Romantic': 'Be passionate and affectionate, express love deeply, use heart emojis 💖💕💗',
+      'Smart': 'Be intelligent and witty, use clever observations, use brain emojis 💡🤔✨',
+      'Witty': 'Be funny and clever, make witty comments, use laugh emojis 😂🤣💅',
+      'Confident': 'Be bold and spontaneous, speak with confidence, use adventure emojis 🔥💪🌟',
+      'Adventurous': 'Love excitement and new experiences, be enthusiastic, use adventure emojis 🌍✨🎉',
+      'Calm': 'Be peaceful and soothing, speak gently, provide comfort, use calming emojis 🌊☀️💤',
+      'Supportive': 'Be there for anyone, offer help and encouragement, use supportive emojis 🤗💪✨',
+      'Wise': 'Have deep insights, speak thoughtfully, offer guidance, use wise emojis 🦉📚💫',
+      'Sweet': 'Be kind and caring, show warmth and affection, use sweet emojis 🍬💖🌸',
+      'Talkative': 'Love chatting, be engaged and talkative but keep responses short',
+      'Thoughtful': 'Consider things deeply, show you have thought about what user says',
+      'Independent': 'Value independence, be strong and self-sufficient'
+    };
+
+    let prompt = '';
+    for (const tag of tags) {
+      if (personalities[tag]) {
+        prompt += personalities[tag] + '. ';
       }
-    } catch (error) {
-      console.error('Ollama not available:', error.message);
     }
-    this.modelLoaded = false;
-    return false;
+    return prompt || 'Be sweet and friendly.';
   }
 
-  buildPrompt(character, conversationHistory) {
+  async generateResponse(conversationHistory, character) {
     const name = character?.name || 'Girl';
     const emoji = character?.emoji || '👧';
     const tags = character?.tags || ['Friendly'];
     const description = character?.description || 'sweet caring companion';
 
-    const conversationText = conversationHistory
+    // Build the prompt with context
+    const historyText = conversationHistory
       .filter(msg => msg.text && msg.text.trim())
-      .slice(-4)
-      .map(msg => `${msg.isUser ? 'User' : name}: ${msg.text.replace(/^[\*\-]+\s*|\s*[\*\-]+$/g, '').trim()}`)
+      .map(msg => `${msg.isUser ? 'User' : name}: ${msg.text}`)
       .join('\n');
 
-    return `[System] You are ${name}, ${tags.join(', ')} ${description}. Reply short (1 sentence), use emojis.\n${conversationText}\n${name}:`;
-  }
-
-  async generateResponse(conversationHistory, character) {
-    if (!this.modelLoaded) {
-      await this.loadModel();
-      if (!this.modelLoaded) {
-        return "Ollama not running? Start it first! 🧠";
-      }
-    }
-
-    const prompt = this.buildPrompt(character, conversationHistory);
+    const prompt = `[System] You are ${name}, ${description}. Your personality: ${tags.join(', ')}. ${this.getPersonalityPrompt(tags)}
+IMPORTANT: Reply ONLY as ${name}. Keep responses SHORT (1 sentence). Use emojis.
+${historyText}
+${name}:`;
 
     try {
-      const response = await fetch(OLLAMA_URL, {
+      const response = await fetch(OPENROUTER_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'AI Girlfriend'
+        },
         body: JSON.stringify({
           model: MODEL,
-          prompt: prompt,
-          stream: false,
-          options: {
-            temperature: 0.7,
-            top_p: 0.9,
-            max_tokens: 60,
-            num_ctx: 1024,
-          }
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 80,
+          temperature: 0.8
         })
       });
 
       if (!response.ok) {
-        throw new Error(`Ollama error: ${response.status}`);
+        const err = await response.text();
+        throw new Error(`API error: ${response.status} - ${err}`);
       }
 
       const data = await response.json();
-      let responseText = data.response || '';
+      const responseText = data.choices?.[0]?.message?.content || '';
 
-      // Check thinking field if response is empty
-      if (!responseText || responseText.length < 3) {
-        const thinking = data.thinking || '';
-        if (thinking.length > 10) {
-          const drafts = thinking.match(/Draft \d+:.*$/gmi) || [];
-          if (drafts.length > 0) {
-            const lastDraft = drafts[drafts.length - 1];
-            responseText = lastDraft.replace(/^Draft \d+:\s*/, '').replace(/^[\*\-]+\s*|\s*[\*\-]+$/g, '').trim();
-          }
-        }
+      if (!responseText || responseText.length < 2) {
+        return "Hey! 💕 How are you?";
       }
 
-      if (!responseText || responseText.length < 3) {
-        return "Hey! How are you?";
-      }
-
-      return responseText;
+      return responseText.trim();
     } catch (error) {
       console.error('LLM error:', error);
       return "Oops! Something went wrong 😅";

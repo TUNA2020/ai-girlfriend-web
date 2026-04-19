@@ -1,6 +1,6 @@
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'google/gemma-3n-e2b-it:free';
-const API_KEY = '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';
+const API_KEY = process.env.REACT_APP_OPENROUTER_API_KEY || '';
 
 class LocalLLM {
   constructor() {
